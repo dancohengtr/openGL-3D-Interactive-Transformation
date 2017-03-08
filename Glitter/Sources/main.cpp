@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "glm/ext.hpp"          // to print vectors and matrices
 
+
 // System Headers
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -25,21 +26,23 @@
 #define RIGHT 0.5f
 #define BOTTOM -0.5f
 #define MIDDLE 0.0f
+#define NEAR 0.5f
+#define FAR -0.5f
 
 const GLchar* vertexSource =
-"#version 150 core\n"             // glsl version
-"in vec2 position;"               // expects 2 values for position
-"in vec3 color;"                  // and 3 values for color
+"#version 330 core\n"             // glsl version
+"layout (location = 0) in vec3 position;"
+"layout (location = 1) in vec3 color;"               // and 3 values for color
 "out vec3 Color;"                 // will pass color along pipeline
-"uniform mat4 model;"             // uniform = the same for all vertices
+"uniform mat4 model;"         // uniform = the same for all vertices
 "void main()"
 "{"
 "    Color = color;"              // just pass color along without modifying it
-"    gl_Position = model * vec4(position, 0.0, 1.0);"   // gl_Position is special variable for final position
+"    gl_Position = model * vec4(position, 1.0f);"   // gl_Position is special variable for final position
 "}";                                                    // must be in homogeneous coordinates -- put in 0 for z and 1 for w
 // multiply by model matrix to transform
 const GLchar* fragmentSource =
-"#version 150 core\n"
+"#version 330 core\n"
 "in vec3 Color;"
 "out vec4 outColor;"
 "void main()"
@@ -49,13 +52,18 @@ const GLchar* fragmentSource =
 
 // vertex data
 GLfloat vertices [] = {
-  MIDDLE, TOP, RED,
-  LEFT, BOTTOM, BLUE,
-  RIGHT, BOTTOM, GREEN,
+  LEFT, BOTTOM, NEAR, BLUE,
+  RIGHT, BOTTOM, NEAR, BLUE,
+  MIDDLE, TOP, MIDDLE, BLUE,
+  LEFT, BOTTOM, NEAR, RED,
+  LEFT, BOTTOM, FAR, RED,
+  MIDDLE, TOP, MIDDLE, RED,
+  RIGHT, BOTTOM, NEAR, GREEN,
+  RIGHT, BOTTOM, FAR, GREEN,
+  MIDDLE, TOP, MIDDLE, GREEN
 };
-
 bool controlIsPressed(GLFWwindow* window) {
-	return glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS; 
+	return glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
 }
 
 // callback for keyboard input
@@ -104,6 +112,8 @@ int main(int argc, char * argv[]) {
   glGenBuffers(1, &vbo);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+
   
   // Create and compile the vertex shader
   GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -124,18 +134,19 @@ int main(int argc, char * argv[]) {
   // Specify the layout of the vertex data
   // position
   GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
-  glEnableVertexAttribArray(posAttrib);
-  glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);  // attribute location, # values, value type, normalize?, stride, offset
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat),(GLvoid*)0);  // attribute location, # values, value type, normalize?, stride, offset
+  glEnableVertexAttribArray(0);
   // color
   GLint colAttrib = glGetAttribLocation(shaderProgram, "color");
-  glEnableVertexAttribArray(colAttrib);
-  glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+  glEnableVertexAttribArray(1);
   
   // model matrix
-  GLint modelTransform = glGetUniformLocation(shaderProgram, "model");
+  /*GLint modelTransform = glGetUniformLocation(shaderProgram, "model");
   glm::mat4 scale_model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f,0.5f,0.0f));
-	glm::mat4 model = scale_model;
-  glUniformMatrix4fv(modelTransform, 1, GL_FALSE, glm::value_ptr(model));
+  glm::mat4 model = scale_model;
+  glUniformMatrix4fv(modelTransform, 1, GL_FALSE, glm::value_ptr(model));*/
+    
   
   // Rendering Loop
   while (glfwWindowShouldClose(mWindow) == false) {
@@ -143,10 +154,16 @@ int main(int argc, char * argv[]) {
     // Background Fill Color
     glClearColor(0.85f, 0.65f, 0.65f, 0.8f);
     glClear(GL_COLOR_BUFFER_BIT);
-    
-    // draw triangle
+     
+    GLint modelTransform = glGetUniformLocation(shaderProgram, "model");
+    glm::mat4 rotate_model = glm::rotate(glm::mat4(1.0f), (GLfloat)glfwGetTime() * 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 model = rotate_model;
+    glUniformMatrix4fv(modelTransform, 1, GL_FALSE, glm::value_ptr(model));
+      
+    //draw triangles
     glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices)/sizeof(vertices[0]));
-    
+      
+      
     // Flip Buffers and Draw
     glfwSwapBuffers(mWindow);
     glfwPollEvents();
